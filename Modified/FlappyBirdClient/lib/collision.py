@@ -13,9 +13,10 @@ import common
 # contactListener
 collision_manager = None
 collision_func = None
+addPropCollision_func = None
 
-def addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2):
-	global collision_manager, collision_func, upPipeCollided, isCollided, pipeDistance
+def addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2, props):
+	global collision_manager, collision_func, addPropCollision_func, upPipeCollided, isCollided, pipeDistance
 	#设置land区域对应的刚体
 	landSprite = CollidableRectSprite("land", (common.visibleSize["width"])/2, (atlas["land"]["height"] / 4 - 3), (common.visibleSize["width"])/2, (atlas["land"]["height"])/2)
 
@@ -36,14 +37,44 @@ def addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2):
 		collision_manager.add(pipes[i].get("downPipe"))
 		collision_manager.add(pipes[i].get("upPipe"))
 
+	def addPropCollision(dt):
+		newProps = getNewProps()
+		if len(newProps) != 0 :
+			collision_manager.add(newProps[0])
+			newProps.pop(0)
+
 	def collisionHandler(dt):
-		global isCollided, upPipeCollided, collision_func
+		global isCollided, upPipeCollided
 		spriteBird.cshape.center = Vector2(spriteBird.position[0], spriteBird.position[1])
+
 		for i in range(0, pipeCount):
 			pipes[i].get("downPipe").cshape.center = Vector2(pipes[i].position[0], pipes[i].position[1]+(atlas["pipe_up"]["height"] + pipeDistance)) 
 			pipes[i].get("upPipe").cshape.center = Vector2(pipes[i].position[0], pipes[i].position[1])
 
+		props = getProps()
+
+		for i in props:
+			if props[i] != None:
+				props[i].cshape.center = Vector2(props[i].position[0], props[i].position[1])
+
 		for other in collision_manager.iter_colliding(spriteBird):
+			#print other.name
+			if crossing()or rebornReady():
+				break
+			if other.name == 'life':
+				addLife()
+				birdXPosition = spriteBird.position[0]
+				if other.position[0] - atlas["prop"]["width"]/2  <= birdXPosition + atlas["bird0_0"]["width"]/2 and other.position[0] + atlas["prop"]["width"]/2  >= birdXPosition - atlas["bird0_0"]["width"]/2:
+					removeProp(other)
+					collision_manager.remove_tricky(other)
+				return
+			if other.name == 'rush':
+				birdXPosition = spriteBird.position[0]
+				if other.position[0] - atlas["prop"]["width"]/2  <= birdXPosition + atlas["bird0_0"]["width"]/2 and other.position[0] + atlas["prop"]["width"]/2  >= birdXPosition - atlas["bird0_0"]["width"]/2:
+					crossModeOn()
+					removeProp(other)
+					collision_manager.remove_tricky(other)
+				return
 			if other.name == 'land':
 				#print "on Contact Between Bird And Land Begin"
 				spriteBird.gravity = 0
@@ -64,25 +95,37 @@ def addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2):
 			isCollided = True
 
 		if isCollided:
-			gameOver(gameScene, land_1, land_2, spriteBird, upPipeCollided)
+			if getLife() > 0 :
+				reborn()
+				reduceLife()
+				isCollided = False
+			else:
+				gameOver(gameScene, land_1, land_2, spriteBird, upPipeCollided)
 
 	collision_func = collisionHandler
+	addPropCollision_func = addPropCollision
 	gameScene.schedule(collisionHandler)
+	gameScene.schedule(addPropCollision)
 
 def gameOver(gameScene, land_1, land_2, spriteBird, upPipeCollided):
-	global collision_func
+	global collision_func, addPropCollision_func
 	land_1.stop()
 	land_2.stop()
+
+	removeMovePropFunc(gameScene)
+	removeMakePropFunc(gameScene)
 
 	removeMovePipeFunc(gameScene)
 	removeCalScoreFunc(gameScene)
 	removeAiControlFunc(gameScene)
 	removeBirdTouchHandler(gameScene)
+
+	if addPropCollision_func:
+		gameScene.unschedule(addPropCollision_func)
+
 	if upPipeCollided and collision_func:
 		gameScene.unschedule(collision_func)
 		spriteBird.stop()
 		setFinalScore()
 		import game_controller
 		game_controller.backToMainMenu()
-
-	

@@ -10,7 +10,9 @@ from atlas import *
 from land import *
 from bird import *
 from score import *
+from life import *
 from pipe import *
+from prop import *
 from collision import *
 from network import *
 import common
@@ -119,12 +121,14 @@ def singleGameReady():
 			startTime = time.time()
 			# add moving pipes
 			pipes = createPipes(gameLayer, gameScene, spriteBird, score)
+			props = createProps(gameLayer, gameScene, spriteBird, pipes)
 			# 小鸟AI初始化
 			# initAI(gameLayer)
 			# add score
 			createScoreLayer(gameLayer)
+			createLifeLayer(gameLayer)
 			# add collision detect
-			addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2)
+			addCollision(gameScene, gameLayer, spriteBird, pipes, land_1, land_2, props)
 			# remove startLayer
 			gameScene.remove(readyLayer)
 
@@ -340,7 +344,9 @@ class SingleGameStartMenu(Menu):#开始游戏菜单
 		gameLayer.add(difficultyMenu, z=20, name="difficulty_button")
 
 
-difficulty = 1
+
+difficulty_x = 1
+difficulty_y = 1
 aiControl = False
 
 
@@ -359,20 +365,27 @@ class DifficultyMenu(Menu):
 		global aiControl
 		aiControl= False
 	def setGameEasy(self):
-		global difficulty
-		difficulty = 0.5
+		global difficulty_x, difficulty_y
+		difficulty_x = 0.5
+		difficulty_y = 0.5
 		self.gameReady()
 	def setGameNormal(self):
-		global difficulty
-		difficulty = 1
+		global difficulty_x, difficulty_y
+
+		difficulty_x = 1
+		difficulty_y = 1
 		self.gameReady()
 	def setGameHard(self):
-		global difficulty
-		difficulty = 2
+		global difficulty_x, difficulty_y
+
+		difficulty_x = 2
+		difficulty_y = 2
 		self.gameReady()
 	def setGamAi(self):
-		global difficulty
-		difficulty = 2
+		global difficulty_x, difficulty_y
+
+		difficulty_x = 2
+		difficulty_y = 2
 		global aiControl
 		aiControl= True
 		self.gameReady()

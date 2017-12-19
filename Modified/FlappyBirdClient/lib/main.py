@@ -13,7 +13,7 @@ def main():
 
     # turn off display FPS
     # director.show_FPS = True
-    
+
     #run
     gameScene = Scene()  # 构造场景，接口函数
     game_start(gameScene)

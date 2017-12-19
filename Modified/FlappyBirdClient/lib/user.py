@@ -81,13 +81,12 @@ def userDataProcess(data):
     else:
         game_controller.showContent("Client receive unknown message")
 
-
 class User:
     def __init__(self, username, bestScore, rank, record):
         self.username = username
         self.sid = network.serialID
         try:
-            self.file = shelve.open("user.dat")
+            self.file = shelve.open("user.dat", writeback=True)
             userData = {
                 'bestScore': bestScore,
                 'rank': rank,

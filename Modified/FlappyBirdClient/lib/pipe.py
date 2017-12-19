@@ -8,6 +8,7 @@ from bird import *
 from score import *
 import game_controller
 import common
+import prop
 import random
 
 # constants
@@ -40,21 +41,21 @@ def createPipes(layer, gameScene, spriteBird, score):
 	def initPipe():
 		for i in range(0, pipeCount):
 
-			pipeDistance = random.randint(110 - 20 * game_controller.difficulty, 120)
+			pipeDistance = random.randint(110 - 20 * game_controller.difficulty_y, 120)
 			global heightOffset
 			oldOffeset = heightOffset
-			heightOffset = random.randint(75 - 60 * game_controller.difficulty, 75 + 60 * game_controller.difficulty)
-			pipeInterval = random.randint(200 - 40 * game_controller.difficulty, 210)
+			heightOffset = random.randint(75 - 60 * game_controller.difficulty_y, 75 + 60 * game_controller.difficulty_y)
+			pipeInterval = random.randint(200 - 40 * game_controller.difficulty_y, 210)
 			count = 1
 			while True:
 				if heightOffset >= oldOffeset:
 					if pipeInterval - 50 < heightOffset - oldOffeset:
-						pipeInterval = random.randint(200 - 40 * game_controller.difficulty, 250)
+						pipeInterval = random.randint(200 - 40 * game_controller.difficulty_y, 250)
 					else:
 						break
 				else:
 					if (pipeInterval - 160) * 2.5 < oldOffeset - heightOffset:
-						pipeInterval = random.randint(200 - 40 * game_controller.difficulty, 250)
+						pipeInterval = random.randint(200 - 40 * game_controller.difficulty_y, 250)
 					else:
 						break
 				count += 1
@@ -78,7 +79,7 @@ def createPipes(layer, gameScene, spriteBird, score):
 			downPipeYPosition[i] = heightOffset + pipeHeight/2 + pipeDistance
 
 	def movePipe(dt):
-		moveDistance = common.visibleSize["width"]/(2*60)*game_controller.difficulty   # 移动速度和land一致
+		moveDistance = common.visibleSize["width"]/(2*60)*game_controller.difficulty_x   # 移动速度和land一致
 		for i in range(0, pipeCount):
 			pipes[i].position = (pipes[i].position[0]-moveDistance, pipes[i].position[1])
 			if pipes[i].position[0] < -pipeWidth/2:
@@ -87,21 +88,21 @@ def createPipes(layer, gameScene, spriteBird, score):
 				next = i - 1
 				if next < 0: next = pipeCount - 1
 
-				pipeDistance = random.randint(110-20*game_controller.difficulty, 120)
+				pipeDistance = random.randint(110-20*game_controller.difficulty_y, 120)
 				global heightOffset
 				oldOffeset = heightOffset
-				heightOffset = random.randint(75-60*game_controller.difficulty, 75+60*game_controller.difficulty)
-				pipeInterval = random.randint(200-40*game_controller.difficulty, 210)
+				heightOffset = random.randint(75-60*game_controller.difficulty_y, 75+60*game_controller.difficulty_y)
+				pipeInterval = random.randint(200-40*game_controller.difficulty_y, 210)
 				count = 1
 				while True:
 					if heightOffset >= oldOffeset :
 						if pipeInterval-50 <  heightOffset - oldOffeset:
-							pipeInterval = random.randint(200 - 40 * game_controller.difficulty, 250)
+							pipeInterval = random.randint(200 - 40 * game_controller.difficulty_y, 250)
 						else:
 							break
 					else:
 						if (pipeInterval-160)*2.5 < oldOffeset - heightOffset:
-							pipeInterval = random.randint(200 - 40 * game_controller.difficulty, 250)
+							pipeInterval = random.randint(200 - 40 * game_controller.difficulty_y, 250)
 						else:
 							break
 					count += 1
@@ -121,6 +122,11 @@ def createPipes(layer, gameScene, spriteBird, score):
 			if pipeState[i] == PIPE_NEW and pipes[i].position[0] < birdXPosition:
 				pipeState[i] = PIPE_PASS
 				g_score = g_score + 1
+				prop.reduceColdtime()
+				if prop.crossing():
+					prop.addCrossCount()
+				if prop.rebornReady():
+					prop.rebornReadyOff()
 				setSpriteScores(g_score) #show score on top of screen
 
 	def aiControl(dt):
@@ -134,7 +140,10 @@ def createPipes(layer, gameScene, spriteBird, score):
 			#print(upPipeYPosition[nearest_i], downPipeYPosition[nearest_i])
 			#spriteBird.position = (spriteBird.position[0], upPipeYPosition[nearest_i]+pipeHeight/2)
 			if spriteBird.position[1] - 25 <= upPipeYPosition[nearest_i]:
-				gameSceneForAi.get("birdTouchHandler").on_mouse_press(None, None, None, None)
+				try:
+					gameSceneForAi.get("birdTouchHandler").on_mouse_press(None, None, None, None)
+				except:
+					pass
 
 	g_score = score
 	initPipe()
