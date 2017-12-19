@@ -5,11 +5,21 @@ from cocos.director import *
 from cocos.scene import *
 from game_controller import *
 import common
+import user
+import pyglet
+import sys
 
+def on_close():
+    try:
+        user.user.logout()
+    except:
+        pass
+    sys.exit(0)
 
 def main():
     # initialize director 这是窗口宽、高、名，接口函数
-    director.init(width=common.visibleSize["width"], height=common.visibleSize["height"], caption="Flappy Bird")
+    gameWindow = director.init(width=common.visibleSize["width"], height=common.visibleSize["height"], caption="Flappy Bird")
+    gameWindow.on_close = on_close
 
     # turn off display FPS
     # director.show_FPS = True
