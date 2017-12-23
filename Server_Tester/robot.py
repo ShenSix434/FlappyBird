@@ -5,10 +5,9 @@ import random
 import socket
 import time
 import netstream
+import threading
 
 INF = float(pow(2, 32))
-ABORT = -1
-TIMEOUT = -2
 
 class Robot:
 
@@ -16,50 +15,43 @@ class Robot:
     RegisteredRobotsName = list()     # 已注册过的账户名
 
     # connect to server
-    ConnectCnt = 0                    # 尝试连接的次数
-    ConnectionFailureCnt = 0          # 连接失败的次数
+    ConnectCnt = 0                    # 总连接次数
+    ConnectSuccessCnt = 0             # 连接成功的次数 = 连接成功的机器人数量
     ConnectDelaySum = 0.              # 连接延迟的总和
     MinConnectDelay = INF             # 最小连接延迟
     MaxConnectDelay = -INF            # 最大连接延迟
 
     # receive sid
     RecvSidCnt = 0
-    RecvSidFaliureCnt = 0
+    RecvSidSuccessCnt = 0
     RecvSidDelaySum = 0.
     MinRecvSidDelay = INF
     MaxRecvSidDelay = -INF
 
-    # Sign up
-    SignUpCnt = 0
-    SignUpDelaySum = 0.
-    MinSignUpDelay = INF
-    MaxSignUpDelay = -INF
-
-    # Log in
-    LoginCnt = 0
-    LoginDelaySum = 0.
-    MinLoginDelay = INF
-    MaxLoginDelay = -INF
+    # Sign up or login
+    SignUpOrLoginCnt = 0             # 注册或登录的总次数
+    SignUpOrLoginSuccessCnt = 0      # 成功次数
+    SignUpOrLoginDelaySum = 0.
+    MinSignUpOrLoginDelay = INF
+    MaxSignUpOrLoginDelay = -INF
 
     # Notice
     NoticeCnt = 0
+    NoticeSuccessCnt = 0
     NoticeDelaySum = 0.
     MinNoticeDelay = INF
     MaxNoticeDelay = -INF
 
     # Request rank
     RequestRankCnt = 0
+    RequestRankSuccessCnt = 0
     RequestRankDelaySum = 0.
     MinRequestRankDelay = INF
     MaxRequestRankDelay = -INF
 
-    # Aborted Robots Counter
-    ConnectAbortCnt = 0                  # 在连接步骤上退出的Robot
-    RecvSidAbortCnt = 0
-    SignUpAbortCnt = 0                   # 在注册步骤上退出的Robot
-    LoginAbortCnt = 0
-    NoticeAbortCnt = 0
-    RequestRankAbortCnt = 0
+    MissionCompRobotsCnt = 0         # 正常完成所有任务的机器人
+
+    Mutex = threading.Lock()  # 互斥访问Robot的变量
 
     def __init__(self, targetServer, robotsNameRange):
         Robot.RobotsCnt += 1
@@ -70,12 +62,12 @@ class Robot:
         if self.username not in Robot.RegisteredRobotsName:
             self.registered_before = False
             Robot.RegisteredRobotsName.append(self.username)
-        # self.randomActionCnt = randomActionsCnt
         self.actions = list()
         self.sock = socket.socket()
         self.connected = False
         self.sid = None
-        self.errcode = ''          # Robot运行状态
+        self.errcode = ''               # Robot运行状态
+        
 
     def initActionsSeq(self, randomActionsNum):
         # 初始化当前robot的动作序列
@@ -96,115 +88,97 @@ class Robot:
             elif op == 2:
                 self.actions.append(self.singleGame)
 
-        # self.actions.append(self.logout)
-        # self.actions.append(self.shutdown)
-
     @staticmethod
     def resetData():
         # 重置统计数据
-        Robot.RobotsCnt = 0
-        Robot.RegisteredRobotsName = list()
+        Robot.Mutex.acquire()
+        Robot.RobotsCnt = 0  # 生成的机器人总数
+        Robot.RegisteredRobotsName = list()  # 已注册过的账户名
 
         # connect to server
-        Robot.ConnectCnt = 0
-        Robot.ConnectionFailureCnt = 0
-        Robot.ConnectSuccessCnt = 0
-        Robot.ConnectDelaySum = 0.
-        Robot.MinConnectDelay = INF
-        Robot.MaxConnectDelay = -INF
+        Robot.ConnectCnt = 0  # 总连接次数
+        Robot.ConnectSuccessCnt = 0  # 连接成功的次数 = 连接成功的机器人数量
+        Robot.ConnectDelaySum = 0.  # 连接延迟的总和
+        Robot.MinConnectDelay = INF  # 最小连接延迟
+        Robot.MaxConnectDelay = -INF  # 最大连接延迟
 
         # receive sid
         Robot.RecvSidCnt = 0
-        Robot.RecvSidFaliureCnt = 0
+        Robot.RecvSidSuccessCnt = 0
         Robot.RecvSidDelaySum = 0.
         Robot.MinRecvSidDelay = INF
         Robot.MaxRecvSidDelay = -INF
 
-        # Sign up
-        Robot.SignUpCnt = 0
-        Robot.SignUpDelaySum = 0.
-        Robot.MinSignUpDelay = INF
-        Robot.MaxSignUpDelay = -INF
-
-        # Log in
-        Robot.LoginCnt = 0
-        Robot.LoginDelaySum = 0.
-        Robot.MinLoginDelay = INF
-        Robot.MaxLoginDelay = -INF
+        # Sign up or login
+        Robot.SignUpOrLoginCnt = 0  # 注册或登录的总次数
+        Robot.SignUpOrLoginSuccessCnt = 0  # 成功次数
+        Robot.SignUpOrLoginDelaySum = 0.
+        Robot.MinSignUpOrLoginDelay = INF
+        Robot.MaxSignUpOrLoginDelay = -INF
 
         # Notice
         Robot.NoticeCnt = 0
+        Robot.NoticeSuccessCnt = 0
         Robot.NoticeDelaySum = 0.
         Robot.MinNoticeDelay = INF
         Robot.MaxNoticeDelay = -INF
 
         # Request rank
         Robot.RequestRankCnt = 0
+        Robot.RequestRankSuccessCnt = 0
         Robot.RequestRankDelaySum = 0.
         Robot.MinRequestRankDelay = INF
         Robot.MaxRequestRankDelay = -INF
 
-        # Aborted Robots Counter
-        Robot.ConnectAbortCnt = 0
-        Robot.RecvSidAbortCnt = 0
-        Robot.SignUpAbortCnt = 0
-        Robot.LoginAbortCnt = 0
-        Robot.NoticeAbortCnt = 0
-        Robot.RequestRankAbortCnt = 0
+        Robot.MissionCompRobotsCnt = 0
+        Robot.Mutex.release()
 
     @staticmethod
     def exportData():
         # 导出统计数据，返回类型：Dict
-        return {
+        Robot.Mutex.acquire()
+        ret =  {
             'RobotsCnt': Robot.RobotsCnt,
-            'RegisteredRobotsName': Robot.RegisteredRobotsName,
+            # 'RegisteredRobotsName': Robot.RegisteredRobotsName,
 
             # connect to server
             'ConnectCnt': Robot.ConnectCnt,
-            'ConnectFailureCnt': Robot.ConnectionFailureCnt,
+            'ConnectSuccessCnt': Robot.ConnectSuccessCnt,
             'ConnectDelaySum': Robot.ConnectDelaySum,
             'MinConnectDelay': Robot.MinConnectDelay,
             'MaxConnectDelay': Robot.MaxConnectDelay,
 
             # receive sid
             'RecvSidCnt': Robot.RecvSidCnt,
-            'RecvSidFaliureCnt': Robot.RecvSidFaliureCnt,
+            'RecvSidSuccessCnt': Robot.RecvSidSuccessCnt,
             'RecvSidDelaySum': Robot.RecvSidDelaySum,
             'MinRecvSidDelay': Robot.MinRecvSidDelay,
             'MaxRecvSidDelay': Robot.MaxRecvSidDelay,
 
-            # Sign up
-            'SignUpCnt': Robot.SignUpCnt,
-            'SignUpDelaySum': Robot.SignUpDelaySum,
-            'MinSignUpDelay': Robot.MinSignUpDelay,
-            'MaxSignUpDelay': Robot.MaxSignUpDelay,
-
-            # Log in
-            'LoginCnt': Robot.LoginCnt,
-            'LoginDelaySum': Robot.LoginDelaySum,
-            'MinLoginDelay': Robot.MinLoginDelay,
-            'MaxLoginDelay': Robot.MaxLoginDelay,
+            # Sign up or login
+            'SignUpOrLoginCnt': Robot.SignUpOrLoginCnt,
+            'SignUpOrLoginSuccessCnt': Robot.SignUpOrLoginSuccessCnt,
+            'SignUpOrLoginDelaySum': Robot.SignUpOrLoginDelaySum,
+            'MinSignUpOrLoginDelay': Robot.MinSignUpOrLoginDelay,
+            'MaxSignUpOrLoginDelay': Robot.MaxSignUpOrLoginDelay,
 
             # Notice
             'NoticeCnt': Robot.NoticeCnt,
+            'NoticeSuccessCnt': Robot.NoticeSuccessCnt,
             'NoticeDelaySum': Robot.NoticeDelaySum,
             'MinNoticeDelay': Robot.MinNoticeDelay,
             'MaxNoticeDelay': Robot.MaxNoticeDelay,
 
             # Request rank
             'RequestRankCnt': Robot.RequestRankCnt,
+            'RequestRankSuccessCnt': Robot.RequestRankSuccessCnt,
             'RequestRankDelaySum': Robot.RequestRankDelaySum,
             'MinRequestRankDelay': Robot.MinRequestRankDelay,
             'MaxRequestRankDelay': Robot.MaxRequestRankDelay,
-
-            # Aborted Robots Counter
-            'ConnectAbortCnt': Robot.ConnectAbortCnt,
-            'RecvSidAbortCnt': Robot.RecvSidAbortCnt,
-            'SignUpAbortCnt': Robot.SignUpAbortCnt,
-            'LoginAbortCnt': Robot.LoginAbortCnt,
-            'NoticeAbortCnt': Robot.NoticeAbortCnt,
-            'RequestRankAbortCnt': Robot.RequestRankAbortCnt
+            'MissionCompRobotsCnt': Robot.MissionCompRobotsCnt
         }
+        Robot.Mutex.release()
+        return ret
 
     def run(self, numOfRetries):
         # start running the robot
@@ -213,6 +187,10 @@ class Robot:
             if actRet is not True:
                 self.errcode = actRet
                 break
+        if self.errcode is '':
+            Robot.Mutex.acquire()
+            Robot.MissionCompRobotsCnt += 1
+            Robot.Mutex.release()
 
     def connect(self, numOfRetries):
         if self.connected:
@@ -221,23 +199,29 @@ class Robot:
         end = None
         start = time.time()
         for i in range(numOfRetries):
+            Robot.Mutex.acquire()
             Robot.ConnectCnt += 1
+            Robot.Mutex.release()
             try:
                 self.sock.connect(self.targetServer)
                 self.connected = True
                 break
             except:
-                Robot.ConnectionFailureCnt += 1
+                time.sleep(0.1)
+                pass     # continue to retry
 
         if self.connected is False:
-            Robot.ConnectAbortCnt += 1
+            # Robot.ConnectAbortCnt += 1
             return 'ConnectError'
         else:
             end = time.time()
             delay = end - start
+            Robot.Mutex.acquire()
+            Robot.ConnectSuccessCnt += 1
             Robot.ConnectDelaySum += delay
             Robot.MinConnectDelay = min(Robot.MinConnectDelay, delay)
             Robot.MaxConnectDelay = max(Robot.MaxConnectDelay, delay)
+            Robot.Mutex.release()
             return True
 
     def recvsid(self, numOfRetries):
@@ -245,11 +229,14 @@ class Robot:
         # start the timer
         start = time.time()
         for i in range(numOfRetries):
+            Robot.Mutex.acquire()
             Robot.RecvSidCnt += 1
+            Robot.Mutex.release()
             rd = self.recv()
             if rd == netstream.CLOSED:
                 break
             elif rd == netstream.EMPTY or rd == netstream.TIMEOUT:
+                time.sleep(0.1)
                 continue
             elif 'sid' in rd:
                 # end the timer
@@ -257,13 +244,16 @@ class Robot:
                 self.sid = rd['sid']
                 break
         if end is None:
-            Robot.RecvSidAbortCnt += 1
+            # Robot.RecvSidAbortCnt += 1
             return 'RecvSidError'
         else:
             delay = end - start
+            Robot.Mutex.acquire()
+            Robot.RecvSidSuccessCnt += 1
             Robot.RecvSidDelaySum += delay
             Robot.MinRecvSidDelay = min(Robot.MinRecvSidDelay, delay)
             Robot.MaxRecvSidDelay = max(Robot.MaxRecvSidDelay, delay)
+            Robot.Mutex.release()
             return True
 
     def recv(self):
@@ -278,7 +268,9 @@ class Robot:
         # start the timer
         start = time.time()
         for i in range(numOfRetries):
-            Robot.LoginCnt += 1
+            Robot.Mutex.acquire()
+            Robot.SignUpOrLoginCnt += 1
+            Robot.Mutex.release()
             sd = {
                 'sid': self.sid,
                 'type': "login",
@@ -290,19 +282,23 @@ class Robot:
             if rd == netstream.CLOSED:
                 break
             elif rd == netstream.EMPTY or rd == netstream.TIMEOUT:
+                time.sleep(0.1)
                 continue
             elif rd['type'] == 'loginResult' and rd['result'] == 'success':
                 # end the timer
                 end = time.time()
                 break
         if end is None:
-            Robot.LoginAbortCnt += 1
+            # Robot.LoginAbortCnt += 1
             return 'LoginError'
         else:
             delay = end - start
-            Robot.LoginDelaySum += delay
-            Robot.MinLoginDelay = min(Robot.MinLoginDelay, delay)
-            Robot.MaxLoginDelay = max(Robot.MaxLoginDelay, delay)
+            Robot.Mutex.acquire()
+            Robot.SignUpOrLoginSuccessCnt += 1
+            Robot.SignUpOrLoginDelaySum += delay
+            Robot.MinSignUpOrLoginDelay = min(Robot.MinSignUpOrLoginDelay, delay)
+            Robot.MaxSignUpOrLoginDelay = max(Robot.MaxSignUpOrLoginDelay, delay)
+            Robot.Mutex.release()
             return True
 
     def signUp(self, numOfRetries):
@@ -311,7 +307,9 @@ class Robot:
         start = time.time()
         rd = None
         for i in range(numOfRetries):
-            Robot.SignUpCnt += 1
+            Robot.Mutex.acquire()
+            Robot.SignUpOrLoginCnt += 1
+            Robot.Mutex.release()
             sd = {
                 'sid': self.sid,
                 'type': "signUp",
@@ -323,32 +321,28 @@ class Robot:
             if rd == netstream.CLOSED:
                 break
             elif rd == netstream.EMPTY or rd == netstream.TIMEOUT:
+                time.sleep(0.1)
                 continue
             elif rd['type'] == 'signUpResult' and rd['result'] == 'success':
                 # end the timer
                 end = time.time()
                 break
         if end is None:
-
-            # debug
-            # print rd
-            # debug
-
-            Robot.SignUpAbortCnt += 1
+            # Robot.SignUpAbortCnt += 1
             return 'SignUpError'
         else:
             delay = end - start
-            Robot.SignUpDelaySum += delay
-            Robot.MinSignUpDelay = min(Robot.MinSignUpDelay, delay)
-            Robot.MaxSignUpDelay = max(Robot.MaxSignUpDelay, delay)
+            Robot.Mutex.acquire()
+            Robot.SignUpOrLoginSuccessCnt += 1
+            Robot.SignUpOrLoginDelaySum += delay
+            Robot.MinSignUpOrLoginDelay = min(Robot.MinSignUpOrLoginDelay, delay)
+            Robot.MaxSignUpOrLoginDelay = max(Robot.MaxSignUpOrLoginDelay, delay)
+            Robot.Mutex.release()
             return True
 
     def singleGame(self, numOfRetries):
         # send several recent scores and then send final score which means game over
         return True
-
-    def logout(self):
-        pass
 
     def shutdown(self):
         # disconnect from the server
@@ -358,7 +352,9 @@ class Robot:
         end = None
         start = time.time()
         for i in range(numOfRetries):
+            Robot.Mutex.acquire()
             Robot.NoticeCnt += 1
+            Robot.Mutex.release()
             sd = {
                 'sid': self.sid,
                 'type': "notice"
@@ -368,19 +364,23 @@ class Robot:
             if rd == netstream.CLOSED:
                 break
             elif rd == netstream.EMPTY or rd == netstream.TIMEOUT:
+                time.sleep(0.1)
                 continue
             elif rd['type'] == 'notice' and rd['content'] == 'Sever is connected':
                 # end the timer
                 end = time.time()
                 break
         if end is None:
-            Robot.NoticeAbortCnt += 1
+            # Robot.NoticeAbortCnt += 1
             return 'NoticeError'
         else:
             delay = end - start
+            Robot.Mutex.acquire()
+            Robot.NoticeSuccessCnt += 1
             Robot.NoticeDelaySum += delay
             Robot.MinNoticeDelay = min(Robot.MinNoticeDelay, delay)
             Robot.MaxNoticeDelay = max(Robot.MaxNoticeDelay, delay)
+            Robot.Mutex.release()
             return True
 
     def requestRank(self, numOfRetries):
@@ -388,7 +388,9 @@ class Robot:
         # start the timer
         start = time.time()
         for i in range(numOfRetries):
+            Robot.Mutex.acquire()
             Robot.RequestRankCnt += 1
+            Robot.Mutex.release()
             sd = {
                 'sid': self.sid,
                 'type': "notice",
@@ -398,17 +400,21 @@ class Robot:
             if rd == netstream.CLOSED:
                 break
             elif rd == netstream.EMPTY or rd == netstream.TIMEOUT:
+                time.sleep(0.1)
                 continue
             elif rd['type'] == 'notice' and rd['content'] == 'Sever is connected':
                 # end the timer
                 end = time.time()
                 break
         if end is None:
-            Robot.RequestRankAbortCnt += 1
+            # Robot.RequestRankAbortCnt += 1
             return 'RequestRankError'
         else:
             delay = end - start
+            Robot.Mutex.acquire()
+            Robot.RequestRankSuccessCnt += 1
             Robot.RequestRankDelaySum += delay
             Robot.MinRequestRankDelay = min(Robot.MinRequestRankDelay, delay)
             Robot.MaxRequestRankDelay = max(Robot.MaxRequestRankDelay, delay)
+            Robot.Mutex.release()
             return True
